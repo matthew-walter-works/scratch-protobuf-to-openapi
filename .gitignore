@@ -1,0 +1,52 @@
+# Node.js dependency directories
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+
+# Build directories and generated code
+shared/gen/
+shared/openapi/
+artifact/
+
+# Protobuf files
+*.pb.go
+*.pb.gw.go
+*.pb.json.go
+*.pb.csharp.cs
+*.pb.js
+*.pb.swift
+*.pb.ts
+
+# Docker-related files
+Dockerfile
+docker-compose.yml
+.dockerignore
+*.tar
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Generated OpenAPI clients
+addressbook-client/
+
+# MacOS system files
+*.DS_Store
+
+# Protobuf compiler generated files
+*.pb.*
+*.proto~
+
+openapitools.json
