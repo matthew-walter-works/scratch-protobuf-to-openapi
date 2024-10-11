@@ -1,101 +1,84 @@
-# Paths
+# Variables
+DOCKER_IMAGE = grpc-openapi-builder
+CONTAINER_WORKDIR = /usr/src/app
 PROTO_DIR = shared/proto
 PROTO_GEN_DIR = shared/gen
 OPENAPI_GEN_DIR = shared/openapi
+ARTIFACT_DIR = artifact
+EXAMPLE_PROTO_URL = https://raw.githubusercontent.com/protocolbuffers/protobuf/refs/heads/main/examples/addressbook.proto
 
-# Tools
-PROTOC = protoc
-PROTOC_OPENAPI_PLUGIN = protoc-gen-openapi
-OPENAPI_GENERATOR = openapi-generator-cli
-NPM = npm
-
-# Example Protobuf source (replace this with actual URL or GitHub repo raw URLs)
-PROTO_EXAMPLES_URL = https://raw.githubusercontent.com/protocolbuffers/protobuf/refs/heads/main/examples/addressbook.proto
-EXAMPLE_PROTO_FILES = addressbook.proto
-
-# Proto and OpenAPI targets
-PROTO_FILES = $(shell find $(PROTO_DIR) -name '*.proto')
-PROTO_GEN_FILES = $(patsubst $(PROTO_DIR)/%.proto, $(PROTO_GEN_DIR)/%.js, $(PROTO_FILES))
-OPENAPI_SPEC_FILES = $(patsubst $(PROTO_DIR)/%.proto, $(OPENAPI_GEN_DIR)/%.yaml, $(PROTO_FILES))
+# Docker-related commands
+DOCKER_RUN = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE)
 
 # Rules
-.PHONY: all clean proto openapi sync install_deps create_structure install_protobuf_examples
+.PHONY: all clean proto openapi sync build_docker_image install_protobuf_example run_docker artifact
 
-# Default target
-all: install_deps create_structure proto openapi sync
+# Build the Docker image
+build_docker_image:
+	@echo "Building Docker image..."
+	docker build -t $(DOCKER_IMAGE) .
 
 # Clean up generated files
 clean:
-	rm -rf $(PROTO_GEN_DIR) $(OPENAPI_GEN_DIR)
+	@echo "Cleaning up generated files..."
+	rm -rf $(PROTO_GEN_DIR) $(OPENAPI_GEN_DIR) $(ARTIFACT_DIR)
 
-# Create folder structure for generated code
+# Create the necessary folder structure for generated code and artifacts
 create_structure:
-	@echo "Creating folder structure..."
-	@mkdir -p $(PROTO_GEN_DIR)
-	@mkdir -p $(OPENAPI_GEN_DIR)
+	@echo "Creating folder structure for generated files and artifacts..."
+	mkdir -p $(PROTO_GEN_DIR)
+	mkdir -p $(OPENAPI_GEN_DIR)
+	mkdir -p $(ARTIFACT_DIR)
 
-# Install necessary dependencies
-install_deps:
-	@echo "Installing dependencies..."
-	# Install protobuf and protoc-gen-openapi (ensure protoc is available)
-	if ! command -v $(PROTOC) &> /dev/null; then \
-		echo "protoc not found, installing protobuf..."; \
-		brew install protobuf; \
-	fi
+# Install example Protobuf file
+# install_protobuf_example:
+# 	@echo "Installing example Protobuf file..."
+# 	mkdir -p $(PROTO_DIR)
+# 	curl -L $(EXAMPLE_PROTO_URL) -o $(PROTO_DIR)/addressbook.proto
 
-	# Install protoc-gen-openapi (for generating OpenAPI from proto files)
-	if ! command -v $(PROTOC_OPENAPI_PLUGIN) &> /dev/null; then \
-		echo "protoc-gen-openapi not found, installing protoc-gen-openapi..."; \
-		go install github.com/google/gnostic/cmd/protoc-gen-openapi@latest; \
-		export PATH=$$PATH:$$GOPATH/bin; \
-	fi
-
-	# Install openapi-generator-cli (for generating client code)
-	if ! command -v $(OPENAPI_GENERATOR) &> /dev/null; then \
-		echo "openapi-generator-cli not found, installing openapi-generator-cli..."; \
-		npm install -g @openapitools/openapi-generator-cli; \
-	fi
-
-# Install example .proto files
-install_protobuf_examples:
-	@echo "Installing example Protobuf files..."
-	@mkdir -p $(PROTO_DIR)
-	$(foreach proto,$(EXAMPLE_PROTO_FILES), \
-		curl -L $(PROTO_EXAMPLES_URL)/$(proto) -o $(PROTO_DIR)/$(proto); \
-		echo "Downloaded $(proto)"; \
-	)
-
-# Compile Protobuf to gRPC stubs (JavaScript/TypeScript in this example)
-proto: $(PROTO_GEN_FILES)
-
-$(PROTO_GEN_DIR)/%.js: $(PROTO_DIR)/%.proto
-	@echo "Compiling $< to gRPC JavaScript stubs..."
-	@$(PROTOC) \
+# Compile Protobuf to gRPC stubs using Docker
+proto:
+	@echo "Compiling Protobuf files to gRPC stubs inside Docker..."
+	$(DOCKER_RUN) bash -c "protoc \
 		--js_out=import_style=commonjs,binary:$(PROTO_GEN_DIR) \
-		--grpc_out=grpc_js:$(PROTO_GEN_DIR) \
+		--grpc-web_out=import_style=commonjs,mode=grpcwebtext:$(PROTO_GEN_DIR) \
 		--proto_path=$(PROTO_DIR) \
-		$<
+		$(PROTO_DIR)/*.proto"
 
-# Generate OpenAPI specification from Protobuf
-openapi: $(OPENAPI_SPEC_FILES)
+# Generate OpenAPI specification from Protobuf using Docker
+openapi:
+	@echo "Generating OpenAPI specs from Protobuf files inside Docker..."
+	$(DOCKER_RUN) bash -c "protoc \
+		--openapi_out=shared/openapi \
+		--proto_path=shared/proto \
+		--proto_path=/usr/include \
+		shared/proto/*.proto"
+	@echo "Listing contents of shared/openapi after generation:"
+	@ls -l $(OPENAPI_GEN_DIR)
 
-$(OPENAPI_GEN_DIR)/%.yaml: $(PROTO_DIR)/%.proto
-	@echo "Generating OpenAPI spec from $<..."
-	@$(PROTOC) \
-		--openapi_out=$(OPENAPI_GEN_DIR) \
-		--proto_path=$(PROTO_DIR) \
-		$<
-
-# Sync Protobuf and OpenAPI specifications with code generators (e.g., TypeScript clients)
+# Sync OpenAPI and generate TypeScript clients using Docker
 sync:
-	@echo "Generating OpenAPI clients from specs..."
-	$(foreach spec,$(wildcard $(OPENAPI_GEN_DIR)/*.yaml), \
-		$(OPENAPI_GENERATOR) generate \
-		-i $(spec) \
+	@echo "Generating OpenAPI clients from specs inside Docker..."
+	$(DOCKER_RUN) bash -c "openapi-generator-cli generate \
+		-i $(OPENAPI_GEN_DIR)/openapi.yaml \
 		-g typescript-fetch \
-		-o $(PROTO_GEN_DIR)/$(notdir $(basename $(spec)))-client; \
-	)
+		-o $(PROTO_GEN_DIR)/addressbook-client"
+
+# Copy OpenAPI spec to the artifact directory
+artifact:
+	@echo "Copying OpenAPI spec to the artifact directory..."
+	cp $(OPENAPI_GEN_DIR)/openapi.yaml $(ARTIFACT_DIR)/addressbook-openapi.yaml
+	@echo "Artifact saved at $(ARTIFACT_DIR)/addressbook-openapi.yaml"
+
+# Full build: Clean, build Docker image, create structure, generate stubs, OpenAPI, sync, and save artifact
+all: clean build_docker_image create_structure proto openapi sync artifact
+	@echo "All steps completed successfully."
+
+# Run the Docker container interactively
+run_docker:
+	@echo "Running Docker container interactively..."
+	$(DOCKER_RUN) bash
 
 # Example of running everything together
-run: clean all
+run: all
 	@echo "Build complete."
