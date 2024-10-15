@@ -4,12 +4,13 @@ CONTAINER_WORKDIR = /usr/src/app
 PROTO_DIR = shared/proto
 PROTO_GEN_DIR = shared/gen
 OPENAPI_GEN_DIR = shared/openapi
+REST_API_GEN_DIR = shared/rest
 
 # Docker-related commands
 DOCKER_RUN = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE)
 
 # Rules
-.PHONY: all clean proto openapi sync build_docker_image run_docker
+.PHONY: all clean proto openapi sync build_docker_image run_docker create_structure rest_api
 
 # Build the Docker image
 build_docker_image:
@@ -19,13 +20,14 @@ build_docker_image:
 # Clean up generated files
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(PROTO_GEN_DIR) $(OPENAPI_GEN_DIR)
+	rm -rf $(PROTO_GEN_DIR) $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR)
 
 # Create the necessary folder structure for generated code
 create_structure:
 	@echo "Creating folder structure for generated files..."
 	mkdir -p $(PROTO_GEN_DIR)
 	mkdir -p $(OPENAPI_GEN_DIR)
+	mkdir -p $(REST_API_GEN_DIR)
 
 # Compile Protobuf to gRPC stubs using Docker for all .proto files
 proto:
@@ -64,8 +66,20 @@ sync:
 			-o $(PROTO_GEN_DIR)/$$base_name-client"; \
 	done
 
+# Generate TypeScript REST API clients for each OpenAPI spec
+rest_api:
+	@echo "Generating TypeScript REST API clients from OpenAPI specs inside Docker..."
+	for openapi_file in $(OPENAPI_GEN_DIR)/*.openapi.yaml; do \
+		base_name=$$(basename $$openapi_file .openapi.yaml); \
+		$(DOCKER_RUN) bash -c "openapi-generator-cli generate \
+			-i $$openapi_file \
+			-g typescript-fetch \
+			-o $(REST_API_GEN_DIR)/$$base_name-rest-client"; \
+	done
+	@echo "TypeScript REST API clients generated in $(REST_API_GEN_DIR)."
+
 # Full build: Clean, build Docker image, create structure, generate stubs, OpenAPI, and sync
-all: clean build_docker_image create_structure proto openapi sync
+all: clean build_docker_image create_structure proto openapi sync rest_api
 	@echo "All steps completed successfully."
 
 # Run the Docker container interactively

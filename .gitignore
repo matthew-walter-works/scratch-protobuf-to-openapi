@@ -50,3 +50,5 @@ addressbook-client/
 *.proto~
 
 openapitools.json
+
+shared/rest
