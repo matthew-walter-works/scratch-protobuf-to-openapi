@@ -45,41 +45,43 @@ openapi: create_structure
 		$(PROTO_DIR)/*.proto && \
 		echo 'OpenAPI specs generated at:' && cd $(OPENAPI_GEN_DIR) && pwd && ls -la"
 
-# Debugging Step: List contents of gen/openapi inside Docker
-debug-openapi:
-	@echo "Listing contents of gen/openapi inside Docker..."
-	@echo "Contents of OPENAPI_GEN_DIR is $(OPENAPI_GEN_DIR)"
-	$(DOCKER_RUN_OPENAPI) bash -c "ls -la $(OPENAPI_GEN_DIR) && cat $(OPENAPI_GEN_DIR)/openapi.yaml || echo 'openapi.yaml not found'"
-
-# Generate Python REST API server from OpenAPI spec
+# Generate Python REST API server from OpenAPI specs
 rest-api: create_structure
 	@echo "Generating Python REST API server from OpenAPI specs..."
 	@OPENAPI_FILE=$(OPENAPI_GEN_DIR)/openapi.yaml; \
-	if [ -f "$$OPENAPI_FILE" ]; then \
-		echo "Processing $$OPENAPI_FILE"; \
-		$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
-			-i '$$OPENAPI_FILE' \
-			-g python-flask \
-			-o '$(REST_API_GEN_DIR)/flask-server'"; \
-	else \
-		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
-		echo "Looking for: $$OPENAPI_FILE"; \
-	fi
+	PROTO_FILES=$(PROTO_DIR)/*.proto; \
+	for f in $$PROTO_FILES; do \
+		base_name=$$(basename $$f .proto); \
+		if [ -f "$$OPENAPI_FILE" ]; then \
+			echo "Processing $$OPENAPI_FILE for $$base_name"; \
+			$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
+				-i '$$OPENAPI_FILE' \
+				-g python-flask \
+				-o '$(REST_API_GEN_DIR)/$$base_name-server'"; \
+		else \
+			echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
+			echo "Looking for: $$OPENAPI_FILE"; \
+		fi; \
+	done
 
-# Generate TypeScript clients from OpenAPI spec
+# Generate TypeScript clients from OpenAPI specs
 typescript-clients: create_structure
 	@echo "Generating TypeScript clients from OpenAPI specs..."
 	@OPENAPI_FILE=$(OPENAPI_GEN_DIR)/openapi.yaml; \
-	if [ -f "$$OPENAPI_FILE" ]; then \
-		echo "Processing $$OPENAPI_FILE"; \
-		$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
-			-i '$$OPENAPI_FILE' \
-			-g typescript-fetch \
-			-o '$(CLIENTS_GEN_DIR)/$(basename $$OPENAPI_FILE)'"; \
-	else \
-		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
-		echo "Looking for: $$OPENAPI_FILE"; \
-	fi
+	PROTO_FILES=$(PROTO_DIR)/*.proto; \
+	for f in $$PROTO_FILES; do \
+		base_name=$$(basename $$f .proto); \
+		if [ -f "$$OPENAPI_FILE" ]; then \
+			echo "Processing $$OPENAPI_FILE for $$base_name"; \
+			$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
+				-i '$$OPENAPI_FILE' \
+				-g typescript-fetch \
+				-o '$(CLIENTS_GEN_DIR)/$$base_name'"; \
+		else \
+			echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
+			echo "Looking for: $$OPENAPI_FILE"; \
+		fi; \
+	done
 
 # Full build: Clean, build Docker images, create structure, and generate specs and server API
 all: clean build_docker_images openapi rest-api typescript-clients
