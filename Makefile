@@ -10,7 +10,6 @@ CLIENTS_GEN_DIR = gen/clients# Path for clients generation
 CLIENTS_TS_GEN_DIR = $(CLIENTS_GEN_DIR)/typescript# Path for TypeScript client generation
 CLIENTS_GRPC_GEN_DIR = $(CLIENTS_GEN_DIR)/grpc# Path for gRPC client generation
 
-
 # Docker-related commands
 DOCKER_RUN_OPENAPI = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_OPENAPI)
 DOCKER_RUN_GRPC = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_GRPC)
@@ -23,10 +22,10 @@ print-vars:
 	@echo "Proto Directory: $(PROTO_DIR)"
 	@echo "OpenAPI Generation Directory: $(OPENAPI_GEN_DIR)"
 	@echo "REST API Generation Directory: $(SERVER_REST_GEN_DIR)"
+	@echo "gRPC Server Generation Directory: $(SERVER_GRPC_GEN_DIR)"
 	@echo "Clients Generation Directory: $(CLIENTS_GEN_DIR)"
 	@echo "TypeScript Clients Generation Directory: $(CLIENTS_TS_GEN_DIR)"
 	@echo "gRPC Clients Generation Directory: $(CLIENTS_GRPC_GEN_DIR)"
-	@echo "gRPC Server Generation Directory: $(SERVER_GRPC_GEN_DIR)"
 
 # Build Docker images
 build_docker_images:
@@ -38,16 +37,16 @@ build_docker_images:
 # Clean up generated files
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(OPENAPI_GEN_DIR) $(SERVER_REST_GEN_DIR) $(CLIENTS_GEN_DIR)
+	rm -rf $(OPENAPI_GEN_DIR) $(SERVER_REST_GEN_DIR) $(SERVER_GRPC_GEN_DIR) $(CLIENTS_GEN_DIR)
 
 # Create necessary folder structure
 create_structure:
 	@echo "Creating folder structure for generated files..."
 	mkdir -p $(OPENAPI_GEN_DIR)
 	mkdir -p $(SERVER_REST_GEN_DIR)
+	mkdir -p $(SERVER_GRPC_GEN_DIR)
 	mkdir -p $(CLIENTS_TS_GEN_DIR)
 	mkdir -p $(CLIENTS_GRPC_GEN_DIR)
-	mkdir -p $(SERVER_GRPC_GEN_DIR)
 
 # Generate OpenAPI specs from Protobuf files
 openapi: create_structure
@@ -116,7 +115,7 @@ client-grpc: create_structure
 		echo "gRPC client generated in: $(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
 	done
 
-# Generate gRPC server from Protobuf files
+# Generate gRPC Python server from Protobuf files
 server-grpc: create_structure
 	@echo "Generating gRPC Python server from Protobuf files..."
 	@PROTO_FILES=$(PROTO_DIR)/*.proto; \
