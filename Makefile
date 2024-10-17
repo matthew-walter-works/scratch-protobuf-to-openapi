@@ -118,20 +118,20 @@ client-grpc: create_structure
 
 # Generate gRPC server from Protobuf files
 server-grpc: create_structure
-	@echo "Generating gRPC server from Protobuf files..."
+	@echo "Generating gRPC Python server from Protobuf files..."
 	@PROTO_FILES=$(PROTO_DIR)/*.proto; \
 	for f in $$PROTO_FILES; do \
 		base_name=$$(basename $$f .proto); \
-		echo "Processing $$f for gRPC server"; \
+		echo "Processing $$f for gRPC Python server"; \
 		mkdir -p "$(SERVER_GRPC_GEN_DIR)/$$base_name"; \
-		echo "Creating directory for gRPC server: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
-		$(DOCKER_RUN_GRPC) bash -c "protoc \
-			--proto_path=$(PROTO_DIR) \
-			--proto_path=/usr/include/google/api \
-			--go_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
-			--go-grpc_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
+		echo "Creating directory for gRPC Python server: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
+		$(DOCKER_RUN_GRPC) bash -c "python -m grpc_tools.protoc \
+			-I$(PROTO_DIR) \
+			-I/usr/include/google/api \
+			--python_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
+			--grpc_python_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
 			$$f"; \
-		echo "gRPC server generated in: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
+		echo "gRPC Python server generated in: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
 	done
 
 # Full build: Clean, build Docker images, create structure, and generate specs and server API
