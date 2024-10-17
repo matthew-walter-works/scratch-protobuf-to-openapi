@@ -4,10 +4,12 @@ DOCKER_IMAGE_GRPC = grpc-generator# Docker image name for gRPC
 CONTAINER_WORKDIR = /usr/src/app# Container working directory
 PROTO_DIR = shared/proto# Directory containing proto files
 OPENAPI_GEN_DIR = gen/openapi# Path for OpenAPI spec generation
-REST_API_GEN_DIR = gen/rest_api# Path for REST API generation
+SERVER_REST_GEN_DIR = gen/server/rest# Path for REST API generation
+SERVER_GRPC_GEN_DIR = gen/server/grpc# Path for gRPC server generation
 CLIENTS_GEN_DIR = gen/clients# Path for clients generation
 CLIENTS_TS_GEN_DIR = $(CLIENTS_GEN_DIR)/typescript# Path for TypeScript client generation
 CLIENTS_GRPC_GEN_DIR = $(CLIENTS_GEN_DIR)/grpc# Path for gRPC client generation
+
 
 # Docker-related commands
 DOCKER_RUN_OPENAPI = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_OPENAPI)
@@ -20,10 +22,11 @@ print-vars:
 	@echo "Container Workdir: $(CONTAINER_WORKDIR)"
 	@echo "Proto Directory: $(PROTO_DIR)"
 	@echo "OpenAPI Generation Directory: $(OPENAPI_GEN_DIR)"
-	@echo "REST API Generation Directory: $(REST_API_GEN_DIR)"
+	@echo "REST API Generation Directory: $(SERVER_REST_GEN_DIR)"
 	@echo "Clients Generation Directory: $(CLIENTS_GEN_DIR)"
 	@echo "TypeScript Clients Generation Directory: $(CLIENTS_TS_GEN_DIR)"
 	@echo "gRPC Clients Generation Directory: $(CLIENTS_GRPC_GEN_DIR)"
+	@echo "gRPC Server Generation Directory: $(SERVER_GRPC_GEN_DIR)"
 
 # Build Docker images
 build_docker_images:
@@ -35,15 +38,16 @@ build_docker_images:
 # Clean up generated files
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR) $(CLIENTS_GEN_DIR)
+	rm -rf $(OPENAPI_GEN_DIR) $(SERVER_REST_GEN_DIR) $(CLIENTS_GEN_DIR)
 
 # Create necessary folder structure
 create_structure:
 	@echo "Creating folder structure for generated files..."
 	mkdir -p $(OPENAPI_GEN_DIR)
-	mkdir -p $(REST_API_GEN_DIR)
+	mkdir -p $(SERVER_REST_GEN_DIR)
 	mkdir -p $(CLIENTS_TS_GEN_DIR)
 	mkdir -p $(CLIENTS_GRPC_GEN_DIR)
+	mkdir -p $(SERVER_GRPC_GEN_DIR)
 
 # Generate OpenAPI specs from Protobuf files
 openapi: create_structure
@@ -71,7 +75,7 @@ api-rest: create_structure
 			$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
 				-i '$$f' \
 				-g python-flask \
-				-o '$(REST_API_GEN_DIR)/$$base_name-server'"; \
+				-o '$(SERVER_REST_GEN_DIR)/$$base_name-server'"; \
 		else \
 			echo "No OpenAPI file found: $$f"; \
 		fi; \
@@ -97,9 +101,9 @@ client-typescript: create_structure
 # Generate gRPC clients from Protobuf files
 client-grpc: create_structure
 	@echo "Generating gRPC clients from Protobuf files..."
-	@OPENAPI_FILES=$(OPENAPI_GEN_DIR)/*.yaml; \
-	for f in $$OPENAPI_FILES; do \
-		base_name=$$(basename $$f .yaml); \
+	@PROTO_FILES=$(PROTO_DIR)/*.proto; \
+	for f in $$PROTO_FILES; do \
+		base_name=$$(basename $$f .proto); \
 		echo "Processing $$f for gRPC client"; \
 		mkdir -p "$(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
 		echo "Creating directory for gRPC client: $(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
@@ -108,12 +112,30 @@ client-grpc: create_structure
 			--proto_path=/usr/include/google/api \
 			--go_out=$(CLIENTS_GRPC_GEN_DIR)/$$base_name \
 			--go-grpc_out=$(CLIENTS_GRPC_GEN_DIR)/$$base_name \
-			$(PROTO_DIR)/$$base_name.proto"; \
+			$$f"; \
 		echo "gRPC client generated in: $(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
 	done
 
+# Generate gRPC server from Protobuf files
+server-grpc: create_structure
+	@echo "Generating gRPC server from Protobuf files..."
+	@PROTO_FILES=$(PROTO_DIR)/*.proto; \
+	for f in $$PROTO_FILES; do \
+		base_name=$$(basename $$f .proto); \
+		echo "Processing $$f for gRPC server"; \
+		mkdir -p "$(SERVER_GRPC_GEN_DIR)/$$base_name"; \
+		echo "Creating directory for gRPC server: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
+		$(DOCKER_RUN_GRPC) bash -c "protoc \
+			--proto_path=$(PROTO_DIR) \
+			--proto_path=/usr/include/google/api \
+			--go_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
+			--go-grpc_out=$(SERVER_GRPC_GEN_DIR)/$$base_name \
+			$$f"; \
+		echo "gRPC server generated in: $(SERVER_GRPC_GEN_DIR)/$$base_name"; \
+	done
+
 # Full build: Clean, build Docker images, create structure, and generate specs and server API
-all: clean build_docker_images openapi api-rest client-typescript client-grpc
+all: clean build_docker_images openapi api-rest client-typescript client-grpc server-grpc
 	@echo "All steps completed successfully."
 
 # Run this as the first target to display variable values
