@@ -1,0 +1,26 @@
+# Dockerfile for generating OpenAPI-based Python REST API
+
+# Use an official Node.js runtime as a base image
+FROM node:16-bullseye-slim
+
+# Install basic build tools, Go, and Python
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    golang-go \
+    protobuf-compiler \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download google/api/annotations.proto and http.proto for HTTP mapping
+RUN mkdir -p /usr/include/google/api && \
+    wget https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto -O /usr/include/google/api/annotations.proto && \
+    wget https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto -O /usr/include/google/api/http.proto
+
+# Install Python OpenAPI Generator for REST API
+RUN pip3 install openapi-python-client
+
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Entry point for the Docker container
+CMD ["bash"]

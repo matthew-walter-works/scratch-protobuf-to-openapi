@@ -1,92 +1,56 @@
 # Variables
-DOCKER_IMAGE = grpc-openapi-builder
+DOCKER_IMAGE_OPENAPI = openapi-generator
 CONTAINER_WORKDIR = /usr/src/app
 PROTO_DIR = shared/proto
-PROTO_GEN_DIR = shared/gen
-OPENAPI_GEN_DIR = shared/openapi
-REST_API_GEN_DIR = shared/rest
+OPENAPI_GEN_DIR = gen/openapi    # Path for OpenAPI spec generation
+REST_API_GEN_DIR = gen/rest_api  # Path for REST API generation
 
 # Docker-related commands
-DOCKER_RUN = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE)
+DOCKER_RUN_OPENAPI = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_OPENAPI)
 
-# Rules
-.PHONY: all clean proto openapi sync build_docker_image run_docker create_structure rest_api
-
-# Build the Docker image
-build_docker_image:
-	@echo "Building Docker image..."
-	docker build -t $(DOCKER_IMAGE) .
+# Build Docker image
+build_docker_images:
+	@echo "Building Docker image for OpenAPI and REST API generation..."
+	docker build -t $(DOCKER_IMAGE_OPENAPI) -f docker/Dockerfile.openapi .
 
 # Clean up generated files
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(PROTO_GEN_DIR) $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR)
+	rm -rf $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR)
 
-# Create the necessary folder structure for generated code
+# Create necessary folder structure
 create_structure:
 	@echo "Creating folder structure for generated files..."
-	mkdir -p $(PROTO_GEN_DIR)
 	mkdir -p $(OPENAPI_GEN_DIR)
 	mkdir -p $(REST_API_GEN_DIR)
 
-# Compile Protobuf to gRPC stubs using Docker for all .proto files
-proto:
-	@echo "Compiling Protobuf files to gRPC stubs inside Docker..."
-	for proto_file in $(PROTO_DIR)/*.proto; do \
-		$(DOCKER_RUN) bash -c "protoc \
-			--js_out=import_style=commonjs,binary:$(PROTO_GEN_DIR) \
-			--grpc-web_out=import_style=commonjs,mode=grpcwebtext:$(PROTO_GEN_DIR) \
-			--proto_path=$(PROTO_DIR) \
-			$$proto_file"; \
-	done
-
-# Generate OpenAPI specification for each .proto file
-openapi:
+# Generate OpenAPI specs from Protobuf files
+openapi: create_structure
 	@echo "Generating OpenAPI specs from Protobuf files inside Docker..."
-	for proto_file in $(PROTO_DIR)/*.proto; do \
-		base_name=$$(basename $$proto_file .proto); \
-		$(DOCKER_RUN) bash -c "protoc \
-			--openapi_out=$(OPENAPI_GEN_DIR) \
-			--proto_path=$(PROTO_DIR) \
-			--proto_path=/usr/include \
-			$$proto_file"; \
-		mv $(OPENAPI_GEN_DIR)/openapi.yaml $(OPENAPI_GEN_DIR)/$$base_name.openapi.yaml; \
-	done
-	@echo "Listing contents of shared/openapi after generation:"
-	@ls -l $(OPENAPI_GEN_DIR)
+	$(DOCKER_RUN_OPENAPI) bash -c "protoc \
+		--proto_path=$(PROTO_DIR) \
+		--proto_path=/usr/include/google/api \
+		--openapi_out=$(OPENAPI_GEN_DIR) \
+		$(PROTO_DIR)/*.proto && \
+		echo 'OpenAPI specs generated at:' && cd $(OPENAPI_GEN_DIR) && pwd && ls -la"
 
-# Sync: Generate TypeScript clients for each OpenAPI spec
-sync:
-	@echo "Generating OpenAPI clients from specs inside Docker..."
-	for openapi_file in $(OPENAPI_GEN_DIR)/*.openapi.yaml; do \
-		base_name=$$(basename $$openapi_file .openapi.yaml); \
-		$(DOCKER_RUN) bash -c "openapi-generator-cli generate \
-			-i $$openapi_file \
-			-g typescript-fetch \
-			-o $(PROTO_GEN_DIR)/$$base_name-client"; \
-	done
+# Debugging Step: List contents of gen/openapi inside Docker
+debug-openapi:
+	@echo "Listing contents of gen/openapi inside Docker..."
+	$(DOCKER_RUN_OPENAPI) bash -c "ls -la $(OPENAPI_GEN_DIR) && cat $(OPENAPI_GEN_DIR)/openapi.yaml || echo 'openapi.yaml not found'"
 
-# Generate TypeScript REST API clients for each OpenAPI spec
-rest_api:
-	@echo "Generating TypeScript REST API clients from OpenAPI specs inside Docker..."
-	for openapi_file in $(OPENAPI_GEN_DIR)/*.openapi.yaml; do \
-		base_name=$$(basename $$openapi_file .openapi.yaml); \
-		$(DOCKER_RUN) bash -c "openapi-generator-cli generate \
-			-i $$openapi_file \
-			-g typescript-fetch \
-			-o $(REST_API_GEN_DIR)/$$base_name-rest-client"; \
-	done
-	@echo "TypeScript REST API clients generated in $(REST_API_GEN_DIR)."
+# Generate Python REST API from a single OpenAPI spec
+rest-api: create_structure
+	@echo "Generating Python REST API from openapi.yaml..."
+	$(DOCKER_RUN_OPENAPI) bash -c 'if [ -f "$(OPENAPI_GEN_DIR)/openapi.yaml" ]; then \
+		echo "Processing $(OPENAPI_GEN_DIR)/openapi.yaml"; \
+		openapi-python-client generate \
+			--path "$(OPENAPI_GEN_DIR)/openapi.yaml" \
+			--output-path "$(REST_API_GEN_DIR)/openapi-client"; \
+	else \
+		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
+	fi'
 
-# Full build: Clean, build Docker image, create structure, generate stubs, OpenAPI, and sync
-all: clean build_docker_image create_structure proto openapi sync rest_api
+# Full build: Clean, build Docker images, create structure, and generate specs and API
+all: clean build_docker_images openapi rest-api
 	@echo "All steps completed successfully."
-
-# Run the Docker container interactively
-run_docker:
-	@echo "Running Docker container interactively..."
-	$(DOCKER_RUN) bash
-
-# Example of running everything together
-run: all
-	@echo "Build complete."

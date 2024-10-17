@@ -1,0 +1,39 @@
+# Use an official Node.js runtime as a base image
+FROM node:16-bullseye-slim
+
+# Install basic build tools, Go, Java, protobuf-compiler, and wget
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    unzip \
+    golang-go \
+    default-jre \
+    protobuf-compiler \
+    python3-pip \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and install protoc-gen-openapi from source (for OpenAPI generation from Protobuf)
+RUN git clone https://github.com/google/gnostic.git /tmp/gnostic \
+    && cd /tmp/gnostic \
+    && go build ./cmd/protoc-gen-openapi \
+    && mv protoc-gen-openapi /usr/local/bin/ \
+    && rm -rf /tmp/gnostic
+
+# Download google/api/annotations.proto and http.proto for HTTP mapping
+RUN mkdir -p /usr/include/google/api && \
+    wget https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto -O /usr/include/google/api/annotations.proto && \
+    wget https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto -O /usr/include/google/api/http.proto
+
+# Install openapi-generator-cli globally using npm (for generating TypeScript clients)
+RUN npm install -g @openapitools/openapi-generator-cli
+
+# Install openapi-python-client for generating Python REST APIs
+RUN pip3 install openapi-python-client
+
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Entry point for the Docker container
+CMD ["bash"]
