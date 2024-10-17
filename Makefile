@@ -2,11 +2,22 @@
 DOCKER_IMAGE_OPENAPI = openapi-generator
 CONTAINER_WORKDIR = /usr/src/app
 PROTO_DIR = shared/proto
-OPENAPI_GEN_DIR = gen/openapi    # Path for OpenAPI spec generation
-REST_API_GEN_DIR = gen/rest_api  # Path for REST API generation
+OPENAPI_GEN_DIR = gen/openapi# Path for OpenAPI spec generation
+REST_API_GEN_DIR = gen/rest_api# Path for REST API generation
+CLIENTS_GEN_DIR = gen/clients# Path for TypeScript client generation
+
 
 # Docker-related commands
 DOCKER_RUN_OPENAPI = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_OPENAPI)
+
+# Print variable values for debugging
+print-vars:
+	@echo "Docker Image: $(DOCKER_IMAGE_OPENAPI)"
+	@echo "Container Workdir: $(CONTAINER_WORKDIR)"
+	@echo "Proto Directory: $(PROTO_DIR)"
+	@echo "OpenAPI Generation Directory: $(OPENAPI_GEN_DIR)"
+	@echo "REST API Generation Directory: $(REST_API_GEN_DIR)"
+	@echo "Clients Generation Directory: $(CLIENTS_GEN_DIR)"
 
 # Build Docker image
 build_docker_images:
@@ -37,20 +48,40 @@ openapi: create_structure
 # Debugging Step: List contents of gen/openapi inside Docker
 debug-openapi:
 	@echo "Listing contents of gen/openapi inside Docker..."
+	@echo "Contents of OPENAPI_GEN_DIR is $(OPENAPI_GEN_DIR)"
 	$(DOCKER_RUN_OPENAPI) bash -c "ls -la $(OPENAPI_GEN_DIR) && cat $(OPENAPI_GEN_DIR)/openapi.yaml || echo 'openapi.yaml not found'"
 
-# Generate Python REST API from a single OpenAPI spec
+# Generate Python REST API server from OpenAPI spec
 rest-api: create_structure
-	@echo "Generating Python REST API from openapi.yaml..."
+	@echo "Generating Python REST API server from openapi.yaml..."
 	$(DOCKER_RUN_OPENAPI) bash -c 'if [ -f "$(OPENAPI_GEN_DIR)/openapi.yaml" ]; then \
 		echo "Processing $(OPENAPI_GEN_DIR)/openapi.yaml"; \
-		openapi-python-client generate \
-			--path "$(OPENAPI_GEN_DIR)/openapi.yaml" \
-			--output-path "$(REST_API_GEN_DIR)/openapi-client"; \
+		openapi-generator-cli generate \
+			-i "$(OPENAPI_GEN_DIR)/openapi.yaml" \
+			-g python-flask \
+			-o "$(REST_API_GEN_DIR)/flask-server"; \
 	else \
 		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
 	fi'
 
-# Full build: Clean, build Docker images, create structure, and generate specs and API
-all: clean build_docker_images openapi rest-api
+# Generate TypeScript clients from OpenAPI spec
+typescript-clients: create_structure
+	@echo "Generating TypeScript clients from OpenAPI specs..."
+	@OPENAPI_FILE=$(OPENAPI_GEN_DIR)/openapi.yaml; \
+	if [ -f "$$OPENAPI_FILE" ]; then \
+		echo "Processing $$OPENAPI_FILE"; \
+		$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
+			-i '$$OPENAPI_FILE' \
+			-g typescript-fetch \
+			-o '$(CLIENTS_GEN_DIR)/$(basename $$OPENAPI_FILE)'"; \
+	else \
+		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
+		echo "Looking for: $$OPENAPI_FILE"; \
+	fi
+
+# Full build: Clean, build Docker images, create structure, and generate specs and server API
+all: clean build_docker_images openapi rest-api typescript-clients
 	@echo "All steps completed successfully."
+
+# Run this as the first target to display variable values
+.DEFAULT_GOAL := print-vars
