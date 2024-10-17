@@ -1,11 +1,10 @@
 # Variables
-DOCKER_IMAGE_OPENAPI = openapi-generator
-CONTAINER_WORKDIR = /usr/src/app
-PROTO_DIR = shared/proto
+DOCKER_IMAGE_OPENAPI = openapi-generator# Docker image name
+CONTAINER_WORKDIR = /usr/src/app# Container working directory
+PROTO_DIR = shared/proto# Directory containing proto files
 OPENAPI_GEN_DIR = gen/openapi# Path for OpenAPI spec generation
 REST_API_GEN_DIR = gen/rest_api# Path for REST API generation
 CLIENTS_GEN_DIR = gen/clients# Path for TypeScript client generation
-
 
 # Docker-related commands
 DOCKER_RUN_OPENAPI = docker run -v $(PWD):$(CONTAINER_WORKDIR) --rm $(DOCKER_IMAGE_OPENAPI)
@@ -27,13 +26,14 @@ build_docker_images:
 # Clean up generated files
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR)
+	rm -rf $(OPENAPI_GEN_DIR) $(REST_API_GEN_DIR) $(CLIENTS_GEN_DIR)
 
 # Create necessary folder structure
 create_structure:
 	@echo "Creating folder structure for generated files..."
 	mkdir -p $(OPENAPI_GEN_DIR)
 	mkdir -p $(REST_API_GEN_DIR)
+	mkdir -p $(CLIENTS_GEN_DIR)
 
 # Generate OpenAPI specs from Protobuf files
 openapi: create_structure
@@ -53,16 +53,18 @@ debug-openapi:
 
 # Generate Python REST API server from OpenAPI spec
 rest-api: create_structure
-	@echo "Generating Python REST API server from openapi.yaml..."
-	$(DOCKER_RUN_OPENAPI) bash -c 'if [ -f "$(OPENAPI_GEN_DIR)/openapi.yaml" ]; then \
-		echo "Processing $(OPENAPI_GEN_DIR)/openapi.yaml"; \
-		openapi-generator-cli generate \
-			-i "$(OPENAPI_GEN_DIR)/openapi.yaml" \
+	@echo "Generating Python REST API server from OpenAPI specs..."
+	@OPENAPI_FILE=$(OPENAPI_GEN_DIR)/openapi.yaml; \
+	if [ -f "$$OPENAPI_FILE" ]; then \
+		echo "Processing $$OPENAPI_FILE"; \
+		$(DOCKER_RUN_OPENAPI) bash -c "openapi-generator-cli generate \
+			-i '$$OPENAPI_FILE' \
 			-g python-flask \
-			-o "$(REST_API_GEN_DIR)/flask-server"; \
+			-o '$(REST_API_GEN_DIR)/flask-server'"; \
 	else \
 		echo "No openapi.yaml found in $(OPENAPI_GEN_DIR)"; \
-	fi'
+		echo "Looking for: $$OPENAPI_FILE"; \
+	fi
 
 # Generate TypeScript clients from OpenAPI spec
 typescript-clients: create_structure
