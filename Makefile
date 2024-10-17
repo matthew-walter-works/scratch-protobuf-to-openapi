@@ -97,18 +97,19 @@ client-typescript: create_structure
 # Generate gRPC clients from Protobuf files
 client-grpc: create_structure
 	@echo "Generating gRPC clients from Protobuf files..."
-	@PROTO_FILES=$(PROTO_DIR)/*.proto; \
-	for f in $$PROTO_FILES; do \
-		base_name=$$(basename $$f .proto); \
+	@OPENAPI_FILES=$(OPENAPI_GEN_DIR)/*.yaml; \
+	for f in $$OPENAPI_FILES; do \
+		base_name=$$(basename $$f .yaml); \
 		echo "Processing $$f for gRPC client"; \
-		# Create the folder for the gRPC client
-		mkdir -p $(CLIENTS_GRPC_GEN_DIR)/$$base_name; \
+		mkdir -p "$(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
+		echo "Creating directory for gRPC client: $(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
 		$(DOCKER_RUN_GRPC) bash -c "protoc \
 			--proto_path=$(PROTO_DIR) \
 			--proto_path=/usr/include/google/api \
 			--go_out=$(CLIENTS_GRPC_GEN_DIR)/$$base_name \
 			--go-grpc_out=$(CLIENTS_GRPC_GEN_DIR)/$$base_name \
-			$$f"; \
+			$(PROTO_DIR)/$$base_name.proto"; \
+		echo "gRPC client generated in: $(CLIENTS_GRPC_GEN_DIR)/$$base_name"; \
 	done
 
 # Full build: Clean, build Docker images, create structure, and generate specs and server API
