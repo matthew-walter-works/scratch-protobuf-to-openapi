@@ -18,6 +18,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install gRPC tools for Python within the virtual environment
 RUN pip install grpcio grpcio-tools
 
+# Install protoc-gen-go and protoc-gen-go-grpc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
+    && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# Update PATH to include Go binaries
+ENV PATH="$PATH:$(go env GOPATH)/bin"
+
 # Download google/api/annotations.proto and http.proto for HTTP mapping
 RUN mkdir -p /usr/include/google/api && \
     wget https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto -O /usr/include/google/api/annotations.proto && \
