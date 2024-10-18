@@ -1,0 +1,218 @@
+openapi: 3.0.3
+info:
+  description: Define a service to expose HTTP endpoints for the address book.
+  title: AddressBookService API
+  version: 0.0.1
+servers:
+- url: /
+tags:
+- name: AddressBookService
+paths:
+  /v1/people:
+    get:
+      description: List all people in the address book
+      operationId: address_book_service_list_people
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressBook'
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Default error response
+      tags:
+      - AddressBookService
+      x-openapi-router-controller: openapi_server.controllers.address_book_service_controller
+  /v1/person:
+    post:
+      description: Add a new person to the address book
+      operationId: address_book_service_add_person
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Person'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddPersonResponse'
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Default error response
+      tags:
+      - AddressBookService
+      x-openapi-router-controller: openapi_server.controllers.address_book_service_controller
+  /v1/person/{id}:
+    get:
+      description: Get a person by their ID
+      operationId: address_book_service_get_person
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: int32
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Default error response
+      tags:
+      - AddressBookService
+      x-openapi-router-controller: openapi_server.controllers.address_book_service_controller
+components:
+  schemas:
+    AddPersonResponse:
+      example:
+        result: result
+      properties:
+        result:
+          title: result
+          type: string
+      title: AddPersonResponse
+      type: object
+    AddressBook:
+      example:
+        people:
+        - lastUpdated: 2000-01-23T04:56:07.000+00:00
+          name: name
+          phones:
+          - number: number
+            type: 6
+          - number: number
+            type: 6
+          id: 0
+          email: email
+        - lastUpdated: 2000-01-23T04:56:07.000+00:00
+          name: name
+          phones:
+          - number: number
+            type: 6
+          - number: number
+            type: 6
+          id: 0
+          email: email
+      properties:
+        people:
+          items:
+            $ref: '#/components/schemas/Person'
+          title: people
+          type: array
+      title: AddressBook
+      type: object
+    GoogleProtobufAny:
+      additionalProperties: true
+      description: Contains an arbitrary serialized message along with a @type that
+        describes the type of the serialized message.
+      example:
+        '@type': '@type'
+      properties:
+        '@type':
+          description: The type of the serialized message.
+          type: string
+      title: GoogleProtobufAny
+      type: object
+    Person:
+      example:
+        lastUpdated: 2000-01-23T04:56:07.000+00:00
+        name: name
+        phones:
+        - number: number
+          type: 6
+        - number: number
+          type: 6
+        id: 0
+        email: email
+      properties:
+        name:
+          title: name
+          type: string
+        id:
+          format: int32
+          title: id
+          type: integer
+        email:
+          title: email
+          type: string
+        phones:
+          items:
+            $ref: '#/components/schemas/Person_PhoneNumber'
+          title: phones
+          type: array
+        lastUpdated:
+          format: date-time
+          title: lastUpdated
+          type: string
+      title: Person
+      type: object
+    Person_PhoneNumber:
+      example:
+        number: number
+        type: 6
+      properties:
+        number:
+          title: number
+          type: string
+        type:
+          format: enum
+          title: type
+          type: integer
+      title: Person_PhoneNumber
+      type: object
+    Status:
+      description: "The `Status` type defines a logical error model that is suitable\
+        \ for different programming environments, including REST APIs and RPC APIs.\
+        \ It is used by [gRPC](https://github.com/grpc). Each `Status` message contains\
+        \ three pieces of data: error code, error message, and error details. You\
+        \ can find out more about this error model and how to work with it in the\
+        \ [API Design Guide](https://cloud.google.com/apis/design/errors)."
+      example:
+        code: 1
+        details:
+        - '@type': '@type'
+        - '@type': '@type'
+        message: message
+      properties:
+        code:
+          description: "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          format: int32
+          title: code
+          type: integer
+        message:
+          description: "A developer-facing error message, which should be in English.\
+            \ Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details]\
+            \ field, or localized by the client."
+          title: message
+          type: string
+        details:
+          description: A list of messages that carry the error details.  There is
+            a common set of message types for APIs to use.
+          items:
+            $ref: '#/components/schemas/GoogleProtobufAny'
+          title: details
+          type: array
+      title: Status
+      type: object

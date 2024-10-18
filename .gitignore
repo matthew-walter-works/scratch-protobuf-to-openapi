@@ -5,7 +5,7 @@ yarn-error.log
 yarn.lock
 
 # Build directories and generated code
-shared/gen/
+# gen/
 shared/openapi/
 artifact/
 
@@ -17,6 +17,8 @@ artifact/
 *.pb.js
 *.pb.swift
 *.pb.ts
+*.pb.*        # General protobuf files
+*.proto~      # Backup protobuf files
 
 # Docker-related files
 Dockerfile
@@ -39,17 +41,5 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Generated OpenAPI clients
-addressbook-client/
-
-# MacOS system files
-*.DS_Store
-
-# Protobuf compiler generated files
-*.pb.*
-*.proto~
-
+# Miscellaneous
 openapitools.json
-
-shared/rest
-gen

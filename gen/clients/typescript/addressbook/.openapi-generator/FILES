@@ -1,0 +1,12 @@
+.openapi-generator-ignore
+apis/AddressBookServiceApi.ts
+apis/index.ts
+index.ts
+models/AddPersonResponse.ts
+models/AddressBook.ts
+models/GoogleProtobufAny.ts
+models/Person.ts
+models/PersonPhoneNumber.ts
+models/Status.ts
+models/index.ts
+runtime.ts
