@@ -1,6 +1,10 @@
+Here’s the updated README with the correct folder structure reflecting that the `gen` directory is at the root level and the Dockerfiles are located in a `docker` folder:
+
+---
+
 # Protobuf to OpenAPI Generator
 
-This repository provides a simple setup using Docker and Makefile to automate the process of converting `.proto` files to OpenAPI specifications and generating TypeScript clients from those specs.
+This repository provides a simple setup using Docker and Makefile to automate the process of converting `.proto` files to OpenAPI specifications, generating TypeScript clients, and creating gRPC Python servers from those specs.
 
 ## Prerequisites
 
@@ -13,57 +17,66 @@ Before running the project, make sure you have the following installed:
 
 ```
 .
-├── Dockerfile          # Dockerfile to build the environment
-├── Makefile            # Makefile to automate the build process
-├── shared/             # Directory for proto files and generated outputs
-│   ├── proto/          # Place your .proto files here
-│   ├── gen/            # Generated gRPC stubs and TypeScript clients
-│   └── openapi/        # Generated OpenAPI specs
-└── README.md           # Documentation for usage
+├── docker/                  # Directory containing Dockerfiles
+│   ├── Dockerfile.grpc      # Dockerfile for gRPC server
+│   └── Dockerfile.openapi   # Dockerfile for OpenAPI and REST API generation
+├── Makefile                 # Makefile to automate the build process
+├── shared/                  # Directory for proto files and generated outputs
+│   ├── proto/               # Place your .proto files here
+├── gen/                     # Generated gRPC stubs, OpenAPI specs, and clients
+│   ├── openapi/             # Generated OpenAPI specs
+│   ├── clients/             # Generated clients (TypeScript and gRPC)
+│       ├── grpc/            # gRPC client files
+│       └── rest/            # REST client files
+│   └── server/              # Generated server stubs (REST and gRPC)
+│       ├── grpc/            # gRPC server files
+│       └── rest/            # REST server files
+└── README.md                # Documentation for usage
 ```
 
 ### Steps
 
 1. **Place your Protobuf files** in the `shared/proto/` directory.
 
-2. **Build the Docker image**:
+2. **Build the Docker images**:
    Run the following command to build the Docker environment that contains all the necessary tools (e.g., `protoc`, `protoc-gen-openapi`, etc.):
    
    ```bash
-   make build_docker_image
+   make build_docker_images
    ```
 
-3. **Generate gRPC stubs, OpenAPI specs, and TypeScript clients**:
-   To compile all `.proto` files in the `shared/proto/` directory into gRPC stubs, OpenAPI specs, and corresponding TypeScript clients, run:
+3. **Generate gRPC stubs, OpenAPI specs, TypeScript clients, and gRPC Python servers**:
+   To compile all `.proto` files in the `shared/proto/` directory into gRPC stubs, OpenAPI specs, and corresponding TypeScript clients and gRPC Python servers, run:
    
    ```bash
    make all
    ```
 
 4. **View the generated files**:
-   - **gRPC stubs** will be generated in the `shared/gen/` directory.
-   - **OpenAPI specs** will be generated in the `shared/openapi/` directory.
-   - **TypeScript clients** will be generated for each `.proto` file in the `shared/gen/` directory.
+   - **gRPC stubs** will be generated in the `gen/clients/grpc/` directory.
+   - **OpenAPI specs** will be generated in the `gen/openapi/` directory.
+   - **TypeScript clients** will be generated for each `.proto` file in the `gen/clients/typescript/` directory.
+   - **gRPC Python server files** will be generated in the `gen/server/grpc/` directory.
 
 ## Makefile Commands
 
-- **Build Docker Image**:
+- **Build Docker Images**:
   ```bash
-  make build_docker_image
+  make build_docker_images
   ```
-  Builds the Docker image that includes Protobuf and OpenAPI generators.
+  Builds the Docker images that include Protobuf and OpenAPI generators as well as gRPC server dependencies.
 
-- **Generate gRPC Stubs, OpenAPI Specs, and TypeScript Clients**:
+- **Generate gRPC Stubs, OpenAPI Specs, TypeScript Clients, and gRPC Python Servers**:
   ```bash
   make all
   ```
-  Runs the entire process of generating gRPC stubs, OpenAPI specs, and TypeScript clients from the `.proto` files in the `shared/proto/` directory.
+  Runs the entire process of generating gRPC stubs, OpenAPI specs, TypeScript clients, and a gRPC Python server from the `.proto` files in the `shared/proto/` directory.
 
 - **Clean Generated Files**:
   ```bash
   make clean
   ```
-  Removes all generated files from `shared/gen/` and `shared/openapi/`.
+  Removes all generated files from `gen/` and `gen/openapi/`.
 
 - **Run Docker Container Interactively**:
   ```bash
@@ -75,20 +88,29 @@ Before running the project, make sure you have the following installed:
 
 Assuming you have a file `addressbook.proto` in the `shared/proto/` directory, running `make all` will:
 
-- Generate gRPC stubs and TypeScript clients in `shared/gen/`.
-- Generate an OpenAPI spec in `shared/openapi/`.
+- Generate gRPC stubs and TypeScript clients in `gen/clients/`.
+- Generate an OpenAPI spec in `gen/openapi/`.
+- Generate a gRPC Python server in `gen/server/grpc/`.
 
 For example:
 
 ```bash
 shared/
-├── gen/
-│   ├── addressbook-client/     # TypeScript client generated for addressbook.proto
-│   ├── ...                     # Other generated gRPC stubs
-├── openapi/
-│   ├── addressbook.openapi.yaml # OpenAPI spec for addressbook.proto
 └── proto/
-    └── addressbook.proto        # Your original Protobuf file
+    └── addressbook.proto
+gen/
+├── clients/
+│   ├── grpc/
+│   │   └── addressbook/
+│   └── typescript/
+│       └── addressbook/
+├── openapi/
+│   ├── addressbook.yaml
+└── server/
+    ├── grpc/
+    │   └── addressbook/
+    └── rest/
+        └── addressbook/
 ```
 
 ## Proto3 Requirements for OpenAPI Generation
@@ -153,7 +175,3 @@ If the OpenAPI spec remains empty after following these steps, double-check the 
 ## License
 
 This project is licensed under the MIT License.
-
----
-
-This README now includes a **Proto3 Requirements** section, along with a **Troubleshooting Empty OpenAPI Spec** section to help users diagnose common issues. Let me know if you'd like any further changes!
